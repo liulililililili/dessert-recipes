@@ -1,0 +1,1267 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#e8846b">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="配方换算">
+<title>甜品配方换算</title>
+<style>
+  :root{
+    --bg:#fff7f2; --card:#ffffff; --line:#f0ddd2; --text:#4a3b35; --muted:#9b857c;
+    --primary:#e8846b; --primary-d:#d56a50; --accent:#f4b8a4; --soft:#fdeee7;
+    --ok:#5b9e7b; --warn:#e0a23b;
+    --shadow:0 2px 10px rgba(180,120,90,.10);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",Segoe UI,Roboto,sans-serif;
+    background:var(--bg); color:var(--text); font-size:15px; line-height:1.5;
+  }
+  #app{max-width:680px; margin:0 auto; min-height:100vh; display:flex; flex-direction:column}
+  header{
+    position:sticky; top:0; z-index:10; background:var(--card); border-bottom:1px solid var(--line);
+    padding:12px 16px; display:flex; align-items:center; gap:10px; box-shadow:var(--shadow);
+  }
+  header h1{font-size:18px; margin:0; flex:1; font-weight:700; color:var(--primary-d)}
+  header .sub{font-size:12px;color:var(--muted);font-weight:400}
+  .btn{
+    border:none; border-radius:10px; padding:8px 12px; font-size:14px; cursor:pointer;
+    background:var(--soft); color:var(--text); transition:.15s; white-space:nowrap;
+  }
+  .btn:active{transform:scale(.97)}
+  .btn.primary{background:var(--primary); color:#fff}
+  .btn.primary:active{background:var(--primary-d)}
+  .btn.ghost{background:transparent; border:1px solid var(--line)}
+  .btn.danger{background:#fbe3df; color:#c0412e}
+  .btn.sm{padding:5px 9px; font-size:12px; border-radius:8px}
+  main{flex:1; padding:16px; padding-bottom:40px}
+  [hidden]{display:none!important}
+  .empty{text-align:center; color:var(--muted); padding:60px 20px}
+  .empty .big{font-size:46px; margin-bottom:10px}
+  /* search & filter */
+  .toolbar{display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap}
+  .search{flex:1; min-width:160px; position:relative}
+  .search input{
+    width:100%; padding:10px 12px 10px 34px; border:1px solid var(--line); border-radius:12px;
+    background:var(--card); font-size:14px; color:var(--text); outline:none;
+  }
+  .search::before{content:"🔍";position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:13px;opacity:.6}
+  .chips{display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; margin-bottom:12px}
+  .chip{
+    flex:0 0 auto; padding:6px 13px; border-radius:20px; background:var(--card); border:1px solid var(--line);
+    font-size:13px; cursor:pointer; color:var(--muted); white-space:nowrap;
+  }
+  .chip.active{background:var(--primary); color:#fff; border-color:var(--primary)}
+  /* list cards */
+  .card{
+    background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px;
+    margin-bottom:12px; box-shadow:var(--shadow); cursor:pointer; transition:.15s;
+  }
+  .card:active{transform:scale(.99)}
+  .card .top{display:flex; align-items:center; gap:10px}
+  .card .cat{font-size:22px}
+  .card .name{font-weight:700; font-size:16px; flex:1}
+  .card .base{font-size:12px;color:var(--muted);background:var(--soft);padding:3px 8px;border-radius:8px}
+  .card .desc{font-size:13px;color:var(--muted);margin-top:6px;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  /* detail */
+  .back{display:inline-flex;align-items:center;gap:4px;color:var(--primary-d);cursor:pointer;font-size:14px;margin-bottom:12px}
+  .detail-title{font-size:22px;font-weight:800;margin:0 0 2px}
+  .detail-meta{color:var(--muted);font-size:13px;margin-bottom:14px}
+  .meta-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+  .tag{background:var(--soft);border-radius:8px;padding:3px 9px;font-size:12px;color:var(--text)}
+  .section{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px;box-shadow:var(--shadow)}
+  .section h3{margin:0 0 10px;font-size:15px;display:flex;align-items:center;gap:6px}
+  /* conversion panel */
+  .conv-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+  .seg{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .seg button{
+    border:1px solid var(--line);background:var(--card);border-radius:9px;padding:6px 12px;
+    font-size:14px;cursor:pointer;color:var(--text);
+  }
+  .seg button.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+  .seg input{width:64px;padding:6px 8px;border:1px solid var(--line);border-radius:9px;font-size:14px;text-align:center}
+  .seg.disabled{opacity:.45;pointer-events:none}
+  .hint{font-size:12px;color:var(--warn);background:#fdf3e2;border-radius:8px;padding:7px 10px;margin-top:8px}
+  table.mat{width:100%;border-collapse:collapse;margin-top:6px}
+  table.mat th{font-size:12px;color:var(--muted);text-align:left;font-weight:600;padding:6px 4px;border-bottom:1px solid var(--line)}
+  table.mat td{padding:9px 4px;border-bottom:1px solid var(--line);font-size:14px;vertical-align:middle}
+  table.mat tr:last-child td{border-bottom:none}
+  .m-name{font-weight:600}
+  .m-note{font-size:11px;color:var(--muted);display:block;margin-top:1px}
+  .amt-base{color:var(--muted);font-size:13px}
+  .amt-out{font-weight:700;color:var(--primary-d)}
+  .amt-out.pinned{color:var(--warn)}
+  .pin-btn{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:4px 8px;font-size:13px;cursor:pointer}
+  .pin-btn.on{background:var(--warn);color:#fff;border-color:var(--warn)}
+  .pin-input{width:72px;padding:5px 6px;border:1px solid var(--warn);border-radius:8px;font-size:14px;text-align:center;margin-top:5px}
+  tr.dimmed td{opacity:.55}
+  .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+  ol.steps{margin:0;padding-left:20px}
+  ol.steps li{margin-bottom:7px}
+  .notes{font-size:13px;color:var(--muted);white-space:pre-wrap}
+  /* edit form */
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:13px;color:var(--muted);margin-bottom:5px}
+  .field input,.field select,.field textarea{
+    width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;
+    font-size:14px;color:var(--text);background:var(--card);outline:none;font-family:inherit;
+  }
+  .field textarea{resize:vertical;min-height:70px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .mat-edit{background:var(--soft);border-radius:12px;padding:10px;margin-bottom:10px}
+  .mat-edit .row1{display:grid;grid-template-columns:1fr 80px 70px 30px;gap:6px;align-items:center}
+  .mat-edit .row2{display:flex;align-items:center;gap:10px;margin-top:7px}
+  .mat-edit input,.mat-edit select{padding:7px 8px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:#fff}
+  .mat-edit .nm{flex:1}
+  .mat-edit .base-amt{width:74px}
+  .mat-edit .unit{width:74px}
+  .mat-edit .del{border:none;background:#fbe3df;color:#c0412e;border-radius:8px;width:28px;height:28px;cursor:pointer;font-size:15px}
+  .radio-base{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:4px;cursor:pointer}
+  .add-row{display:inline-flex;align-items:center;gap:5px;border:1px dashed var(--primary);color:var(--primary-d);
+    background:transparent;border-radius:10px;padding:8px 12px;cursor:pointer;font-size:13px;margin-top:2px}
+  /* modal */
+  .modal-mask{position:fixed;inset:0;background:rgba(60,40,30,.45);z-index:50;display:flex;align-items:flex-end;justify-content:center}
+  .modal{background:var(--bg);width:100%;max-width:680px;border-radius:18px 18px 0 0;padding:18px;max-height:88vh;overflow:auto}
+  @media(min-width:560px){.modal-mask{align-items:center}.modal{border-radius:18px}}
+  .modal h2{margin:0 0 12px;font-size:18px}
+  .modal textarea{width:100%;min-height:150px;border:1px solid var(--line);border-radius:10px;padding:10px;font-size:12px;font-family:monospace;background:#fff;color:var(--text)}
+  .modal .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+  .file-in{margin-top:10px;font-size:13px;color:var(--muted)}
+  /* toast */
+  #toast{position:fixed;left:50%;bottom:30px;transform:translateX(-50%) translateY(20px);
+    background:#4a3b35;color:#fff;padding:10px 18px;border-radius:24px;font-size:14px;opacity:0;
+    transition:.25s;z-index:99;pointer-events:none;max-width:80vw;text-align:center}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .footer-note{text-align:center;color:var(--muted);font-size:12px;margin-top:24px;line-height:1.7}
+  /* 批量识别 + 集中钉住控件 */
+  .tpl-pre{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px;font-size:12px;
+    line-height:1.55;white-space:pre-wrap;word-break:break-word;max-height:230px;overflow:auto;
+    color:var(--text);font-family:ui-monospace,Menlo,Consolas,monospace;margin:8px 0}
+  #parse-input{min-height:200px}
+  .parse-card .top{gap:8px}
+  .parse-card .pick{width:18px;height:18px;flex:0 0 auto}
+  .parse-card .nm{flex:1;min-width:0;padding:7px 9px;border:1px solid var(--line);border-radius:8px;font-size:14px}
+  .parse-card select{padding:7px 9px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:#fff;color:var(--text)}
+  .parse-card.need-name .nm{border-color:#c0412e;background:#fff4f2}
+  .pin-control{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .pin-control select,.pin-control input{padding:8px 10px;border:1px solid var(--line);border-radius:9px;font-size:14px;background:#fff;color:var(--text)}
+  .pin-control select{flex:1;min-width:150px}
+  .pin-control input{width:104px}
+  .pin-unit{font-size:13px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div>
+      <h1>🍰 甜品配方换算</h1>
+    </div>
+    <button class="btn primary sm" id="btn-add">➕ 新增</button>
+    <button class="btn sm" id="btn-io">⚙️ 数据</button>
+  </header>
+
+  <!-- 列表视图 -->
+  <main id="view-list">
+    <div class="toolbar">
+      <div class="search"><input id="search-input" type="text" placeholder="搜索配方名称…"></div>
+    </div>
+    <div class="chips" id="cat-chips"></div>
+    <div id="recipe-list"></div>
+  </main>
+
+  <!-- 详情视图 -->
+  <main id="view-detail" hidden></main>
+
+  <!-- 编辑视图 -->
+  <main id="view-edit" hidden></main>
+
+  <!-- 数据模态 -->
+  <div id="io-modal" hidden></div>
+
+  <!-- 批量文本识别模态 -->
+  <div id="parse-modal" hidden></div>
+
+  <div id="toast"></div>
+</div>
+
+<script>
+/* ============================== CONFIG ============================== */
+const CATEGORIES = {
+  cake:          {label:'蛋糕',     icon:'🍰'},
+  cookie:        {label:'饼干',     icon:'🍪'},
+  pastry:        {label:'面点',     icon:'🥟'},
+  bread:         {label:'面包',     icon:'🍞'},
+  chinese_pastry:{label:'中式糕点', icon:'🥮'},
+  dessert:       {label:'甜点',     icon:'🍨'},
+};
+const DEFAULT_CATEGORY = 'dessert';
+const OLD_KEY_MAP = { cake:'cake', cookie:'cookie', pudding:'dessert', tart:'pastry', other:'dessert' };
+const LABEL_ALIAS = {
+  '蛋糕':'cake','戚风':'cake','芝士蛋糕':'cake','生日蛋糕':'cake','海绵蛋糕':'cake',
+  '饼干':'cookie','曲奇':'cookie',
+  '面点':'pastry','点心':'pastry','西点':'pastry','派':'pastry','塔':'pastry','塔派':'pastry','挞':'pastry',
+  '面包':'bread','吐司':'bread',
+  '中式糕点':'chinese_pastry','中式':'chinese_pastry','糕点':'chinese_pastry','月饼':'chinese_pastry',
+  '桃酥':'chinese_pastry','中式点心':'chinese_pastry',
+  '甜点':'dessert','甜品':'dessert','布丁':'dessert','慕斯':'dessert','其他':'dessert','其它':'dessert'
+};
+// 单位中文别名 -> 规范单位（键也进入解析正则）
+const UNIT_ALIASES = {
+  '克':'g','公斤':'kg','千克':'kg','毫升':'ml','升':'L','只':'个','粒':'颗',
+  '茶匙':'tsp','小勺':'tsp','汤匙':'tbsp','大勺':'tbsp','大匙':'tbsp'
+};
+const UNITS = ['g','kg','ml','L','个','颗','枚','勺','tsp','tbsp','适量','少许','按口味'];
+const TEXT_UNITS = ['适量','少许','按口味'];
+const STORAGE_KEY = 'dessert_recipe_book_v1';   // 不可改：一次性清空依赖能读到旧存档
+const BACKUP_KEY = 'dessert_recipe_book_v1_backup';
+const SCHEMA_VERSION = 2;
+// 打开即为空白应用：不含任何内置配方。配方由「批量文本识别」/ 手动新增 / 导入 JSON 写入。
+
+/* ============================== ENGINE ============================== */
+/*ENGINE_START*/
+function isNumericUnit(unit){ return !TEXT_UNITS.includes(unit); }
+function roundTo(v, n){ const p = Math.pow(10, n); return Math.round(v * p) / p; }
+
+// 尺寸缩放系数：蛋糕按面积比(D_t/D_b)^2；份数类线性
+function computeFactor(scaleType, baseScale, targetScale){
+  if(scaleType === 'diameter') return Math.pow(targetScale / baseScale, 2);
+  return targetScale / baseScale;
+}
+
+// 按单位舍入
+function roundAmount(value, unit){
+  if(!isNumericUnit(unit)) return value;
+  let r;
+  if(unit === 'kg' || unit === 'L') r = roundTo(value, 2);
+  else if(unit === 'g' || unit === 'ml') r = value >= 100 ? Math.round(value) : roundTo(value, 1);
+  else if(unit === '个' || unit === '颗' || unit === '枚') r = value >= 10 ? Math.round(value) : Math.round(value * 2) / 2; // 0.5 步进
+  else if(unit === '勺' || unit === 'tsp' || unit === 'tbsp') r = Math.round(value * 4) / 4; // 0.25 步进
+  else r = roundTo(value, 1);
+  return roundTo(r, 4);
+}
+
+// 格式化展示数值（隐藏 .0）
+function formatNum(amount, unit){
+  const r = roundAmount(amount, unit);
+  let s = (Math.round(r * 1000) / 1000).toString();
+  return s + ' ' + unit;
+}
+
+// 核心：计算每种材料展示用量
+// opts: { targetScale, pinnedId, pinnedAmount }
+function computeAmounts(recipe, opts){
+  const factor = computeFactor(recipe.scaleType, recipe.baseScale, opts.targetScale);
+  const k = opts.pinnedId ? recipe.materials.find(m => m.id === opts.pinnedId) : null;
+  return recipe.materials.map(m => {
+    if(!isNumericUnit(m.unit)){
+      return { ...m, amount: null, display: m.unit, textUnit: true };
+    }
+    let amount;
+    if(opts.pinnedId && m.id === opts.pinnedId){
+      amount = Number(opts.pinnedAmount);
+    } else if(opts.pinnedId && k && k.baseAmount > 0){
+      amount = Number(opts.pinnedAmount) * m.baseAmount / k.baseAmount;
+    } else {
+      amount = m.baseAmount * factor;
+    }
+    return { ...m, amount, display: formatNum(amount, m.unit), textUnit: false };
+  });
+}
+/*ENGINE_END*/
+
+/* ============================== DATA ============================== */
+let __idSeq = 0;
+function uid(p){ return (p||'id') + Date.now().toString(36) + (__idSeq++).toString(36) + Math.random().toString(36).slice(2,6); }
+
+const emptyData = () => ({ app:'dessert-recipe-book', schemaVersion:SCHEMA_VERSION, recipes: [] });
+
+// 只做规范化，绝不清空（导入旧备份也安全）
+function migrate(data){
+  if(!data || typeof data !== 'object') data = {};
+  if(!Array.isArray(data.recipes)) data.recipes = [];
+  data.recipes.forEach(r => {
+    if(!r.id) r.id = uid('r');
+    r.category = normalizeCategory(r.category);      // 旧 key / 中文别名统一归一
+    if(!r.scaleType) r.scaleType = (r.category === 'cake') ? 'diameter' : 'serving';
+    if(r.baseScale == null) r.baseScale = (r.scaleType === 'diameter') ? 6 : 1;
+    if(r.scaleExponent == null) r.scaleExponent = (r.scaleType === 'diameter') ? 2 : 1;
+    if(!r.baseServingsLabel) r.baseServingsLabel = (r.scaleType === 'diameter') ? '寸' : '份';
+    if(!Array.isArray(r.materials)) r.materials = [];
+    if(!Array.isArray(r.steps)) r.steps = [];
+    r.materials.forEach(m => { if(!m.id) m.id = uid('m'); if(m.isBaseMaterial == null) m.isBaseMaterial = false; });
+  });
+  data.schemaVersion = SCHEMA_VERSION;               // 统一提升，杜绝 replace 导入 v1 后二次清空
+  return data;
+}
+
+// v1 -> v2 升级前留一份可找回的备份（静默写独立 key，不自动弹下载）
+function backupV1(parsed){
+  try{
+    localStorage.setItem(BACKUP_KEY, JSON.stringify({
+      ...parsed, backedUpAt:new Date().toISOString(), reason:'v1→v2 清空前自动备份'
+    }, null, 2));
+    return true;
+  }catch(e){ return false; }
+}
+
+function loadData(){
+  let raw = null;
+  try { raw = localStorage.getItem(STORAGE_KEY); } catch(e){}
+  if(!raw) return migrate(emptyData());                 // 新用户：干净空 v2
+
+  let parsed;
+  try { parsed = JSON.parse(raw); }
+  catch(e){                                            // 存档损坏：自愈写回空 v2
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(emptyData())); } catch(_){}
+    return migrate(emptyData());
+  }
+
+  const rawVersion = Number(parsed && parsed.schemaVersion) || 0;
+  if(rawVersion < 2){
+    // ★ 唯一的一次性清空点：只在 loadData，且只判本地存档原始版本
+    const saved = backupV1(parsed);
+    const cleared = emptyData();
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(cleared)); } catch(e){}
+    try { toast(saved
+      ? '已升级：旧配方已清空并留了一份备份，可在「⚙️ 数据」里取回'
+      : '已升级：旧配方已清空'); } catch(e){}
+    return migrate(cleared);
+  }
+  return migrate(parsed);                              // v2+：只规范化，绝不清空
+}
+
+function saveData(){
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state.data));
+    return true;
+  }catch(e){
+    toast('保存失败：本地存储不可用或已满，请用「数据→导出」备份');
+    return false;
+  }
+}
+
+function exportJSON(){
+  const data = { ...state.data, exportedAt: new Date().toISOString() };
+  return JSON.stringify(data, null, 2);
+}
+
+function importJSON(text, mode){
+  const parsed = JSON.parse(text);
+  const incoming = migrate(parsed);
+  if(mode === 'replace'){
+    state.data = incoming;
+  }else{ // merge by id
+    const map = {};
+    state.data.recipes.forEach(r => map[r.id] = r);
+    incoming.recipes.forEach(r => map[r.id] = r);
+    state.data.recipes = Object.values(map);
+  }
+  saveData();
+}
+
+/* ============================== STATE ============================== */
+const state = {
+  data: null,
+  view: 'list',
+  filterCategory: 'all',
+  search: '',
+  currentRecipeId: null,
+  targetScale: null,
+  pinnedId: null,
+  pinnedAmount: null,
+  editing: null, // 编辑中的配方对象（克隆）
+  parse: { text:'', blocks:[], warnings:[] }, // 批量识别的临时态（不落盘）
+};
+
+/* ============================== UTIL ============================== */
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function $(sel){ return document.querySelector(sel); }
+function toast(msg){
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove('show'), 2200);
+}
+function catMeta(c){ return CATEGORIES[normalizeCategory(c)]; }
+
+/* ============================== RENDER: LIST ============================== */
+function renderChips(){
+  const chips = $('#cat-chips');
+  const items = [['all','全部','📋'], ...Object.entries(CATEGORIES).map(([k,v]) => [k, v.label, v.icon])];
+  chips.innerHTML = items.map(([k,label,icon]) =>
+    `<div class="chip ${state.filterCategory===k?'active':''}" data-cat="${k}">${icon} ${esc(label)}</div>`
+  ).join('');
+  chips.querySelectorAll('.chip').forEach(c => c.onclick = () => {
+    state.filterCategory = c.dataset.cat; renderChips(); renderList();
+  });
+}
+
+function renderList(){
+  state.view = 'list';
+  $('#view-list').hidden = false; $('#view-detail').hidden = true; $('#view-edit').hidden = true;
+  renderChips();
+  const q = state.search.trim().toLowerCase();
+  let recipes = state.data.recipes.slice();
+  if(state.filterCategory !== 'all') recipes = recipes.filter(r => r.category === state.filterCategory);
+  if(q) recipes = recipes.filter(r => (r.name||'').toLowerCase().includes(q) || (r.description||'').toLowerCase().includes(q));
+  const box = $('#recipe-list');
+  if(recipes.length === 0){
+    box.innerHTML = `<div class="empty"><div class="big">🍩</div>
+      <div>还没有配方</div>
+      <div style="margin-top:8px;font-size:13px">点「📝 批量识别」粘贴一大段配方文本一次导入，或「➕ 新增」手动添加、「⚙️ 数据」导入 JSON</div></div>`;
+    return;
+  }
+  box.innerHTML = recipes.map(r => {
+    const c = catMeta(r.category);
+    const baseInfo = `${esc(r.baseScale)}${esc(r.baseServingsLabel || (r.scaleType==='diameter'?'寸':'份'))}基准`;
+    return `<div class="card" data-id="${r.id}">
+      <div class="top"><span class="cat">${c.icon}</span>
+        <span class="name">${esc(r.name)}</span>
+        <span class="base">${baseInfo}</span></div>
+      ${r.description ? `<div class="desc">${esc(r.description)}</div>` : ''}
+    </div>`;
+  }).join('');
+  box.querySelectorAll('.card').forEach(el => el.onclick = () => openDetail(el.dataset.id));
+}
+
+/* ============================== RENDER: DETAIL ============================== */
+function openDetail(id){
+  const r = state.data.recipes.find(x => x.id === id);
+  if(!r) return;
+  state.currentRecipeId = id;
+  state.targetScale = r.baseScale;
+  state.pinnedId = null;
+  state.pinnedAmount = null;
+  state.view = 'detail';
+  $('#view-list').hidden = true; $('#view-detail').hidden = false; $('#view-edit').hidden = true;
+  renderDetail();
+}
+
+function renderDetail(){
+  const r = state.data.recipes.find(x => x.id === state.currentRecipeId);
+  if(!r) return;
+  const c = catMeta(r.category);
+  const meta = [];
+  if(r.bakeTemp) meta.push(`🌡️ ${esc(r.bakeTemp)}`);
+  if(r.bakeTime) meta.push(`⏱️ ${esc(r.bakeTime)}`);
+  meta.push(`📐 ${esc(r.baseScale)}${esc(r.baseServingsLabel|| (r.scaleType==='diameter'?'寸':'份'))}基准`);
+
+  const stepsHtml = (r.steps && r.steps.length)
+    ? `<ol class="steps">${r.steps.map(s => `<li>${esc(s)}</li>`).join('')}</ol>`
+    : `<div class="notes">（无步骤）</div>`;
+
+  const html = `
+    <div class="back" id="back-list">← 返回列表</div>
+    <h2 class="detail-title">${c.icon} ${esc(r.name)}</h2>
+    <div class="detail-meta">${c.label}</div>
+    <div class="meta-row">${meta.map(m => `<span class="tag">${m}</span>`).join('')}</div>
+    ${r.description ? `<div class="section" style="margin-top:14px"><h3>📝 简介</h3><div class="notes">${esc(r.description)}</div></div>` : ''}
+
+    ${r.category === 'cake' ? `
+    <div class="section">
+      <h3>🎂 模具尺寸</h3>
+      <div id="mold-panel"></div>
+    </div>` : ''}
+    <div class="section">
+      <h3>⚖️ 按材料重量计算</h3>
+      <div id="pin-panel"></div>
+      <div id="conv-hint"></div>
+    </div>
+
+    <div class="section"><h3>👩‍🍳 材料</h3>
+      <table class="mat"><thead><tr><th>材料</th><th>基准量</th><th>换算后</th><th></th></tr></thead>
+      <tbody id="mat-body"></tbody></table>
+    </div>
+
+    <div class="section"><h3>📋 步骤</h3>${stepsHtml}</div>
+    ${r.notes ? `<div class="section"><h3>💡 备注</h3><div class="notes">${esc(r.notes)}</div></div>` : ''}
+
+    <div class="actions">
+      <button class="btn primary" id="btn-edit">✏️ 编辑</button>
+      <button class="btn danger" id="btn-del">🗑️ 删除</button>
+      <button class="btn ghost" id="btn-dup">📄 复制</button>
+    </div>
+    <div class="footer-note">换算仅按比例估算，实际请按手感与模具调整</div>
+  `;
+  $('#view-detail').innerHTML = html;
+  $('#back-list').onclick = renderList;
+  $('#btn-edit').onclick = () => openEdit(state.currentRecipeId);
+  $('#btn-del').onclick = () => {
+    if(confirm(`确定删除「${r.name}」？此操作不可撤销。`)){
+      state.data.recipes = state.data.recipes.filter(x => x.id !== r.id);
+      saveData(); toast('已删除'); renderList();
+    }
+  };
+  $('#btn-dup').onclick = () => {
+    const copy = JSON.parse(JSON.stringify(r));
+    copy.id = uid('r'); copy.name = r.name + ' 副本'; copy.isPreset = false;
+    copy.materials = copy.materials.map(m => ({...m, id: uid('m')}));
+    state.data.recipes.push(copy); saveData(); toast('已复制'); openDetail(copy.id);
+  };
+  renderPanel();
+  refreshAmounts();
+}
+
+function renderPanel(){
+  const r = state.data.recipes.find(x => x.id === state.currentRecipeId);
+  if(!r) return;
+  const pinned = !!state.pinnedId;
+  if($('#mold-panel')) renderMoldPanel(r, pinned);   // 仅蛋糕有此容器
+  renderPinPanel(r, pinned);                          // 所有分类常驻
+}
+
+// 「模具尺寸」：仅蛋糕分类，4/6/8 寸 + 自定义
+function renderMoldPanel(r, pinned){
+  const sizes = [4,6,8];
+  const seg = sizes.map(v => `<button data-size="${v}" class="${state.targetScale===v?'active':''}">${v}寸</button>`).join('');
+  const html = `<div class="seg ${pinned?'disabled':''}" id="size-seg">
+      <span style="font-size:13px;color:var(--muted)">目标尺寸</span>${seg}
+      <input id="size-custom" type="number" min="1" step="0.5" value="${state.targetScale}" placeholder="自定义">
+    </div>` + (pinned
+      ? `<div class="hint">📌 已钉住材料，模具换算已锁定：整批用量由被钉材料的实际重量按固定配比决定。</div>`
+      : '');
+  $('#mold-panel').innerHTML = html;
+  const s = $('#size-seg');
+  if(!pinned){
+    s.querySelectorAll('button').forEach(b => b.onclick = () => {
+      state.targetScale = parseFloat(b.dataset.size);
+      renderPanel(); refreshAmounts();
+    });
+    $('#size-custom').oninput = (e) => {
+      const v = parseFloat(e.target.value);
+      if(!isNaN(v) && v > 0){
+        state.targetScale = v; refreshAmounts();
+        s.querySelectorAll('button').forEach(b => b.classList.toggle('active', parseFloat(b.dataset.size)===v));
+      }
+    };
+  }
+}
+
+// 「按材料重量计算」：集中式选基准材料 + 填实际重量
+function renderPinPanel(r, pinned){
+  const mats = r.materials.filter(m => isNumericUnit(m.unit) && m.baseAmount > 0);
+  const opts = mats.map(m => `<option value="${m.id}" ${state.pinnedId===m.id?'selected':''}>${esc(m.name)}（基准 ${formatNum(m.baseAmount, m.unit)}）</option>`).join('');
+  const cur = pinned ? r.materials.find(m => m.id === state.pinnedId) : null;
+  $('#pin-panel').innerHTML = `
+    <div class="pin-control">
+      <select id="pin-select">
+        <option value="">— 选择基准材料 —</option>${opts}
+      </select>
+      <input id="pin-weight" type="text" inputmode="decimal" value="${pinned ? state.pinnedAmount : ''}" placeholder="实际重量" ${pinned?'':'disabled'}>
+      <span class="pin-unit">${cur ? esc(cur.unit) : ''}</span>
+      <button class="btn sm" id="pin-clear" ${pinned?'':'disabled'}>取消钉住</button>
+    </div>`;
+  $('#conv-hint').innerHTML = (r.category !== 'cake')
+    ? `<div class="hint">本分类不含模具尺寸换算；选择基准材料并填入实际重量，即可反推整批用量。</div>` : '';
+
+  $('#pin-select').onchange = (e) => {
+    if(e.target.value) setPin(e.target.value); else clearPin();
+    renderPanel(); refreshAmounts();
+  };
+  $('#pin-clear').onclick = () => { clearPin(); renderPanel(); refreshAmounts(); };
+  $('#pin-weight').oninput = (e) => {
+    const v = parseWeight(e.target.value);
+    if(v != null) state.pinnedAmount = v;
+    refreshAmounts();   // 只刷新材料表，不重建控件，避免输入失焦
+  };
+}
+
+// 只解析、不改写原文：允许 "12."、"0.5" 这类输入中间态
+function parseWeight(raw){
+  const t = String(raw == null ? '' : raw).trim().replace(/。/g, '.');
+  if(!/^\d*\.?\d*$/.test(t)) return null;
+  const v = parseFloat(t);
+  return (isNaN(v) || v <= 0) ? null : v;
+}
+
+function refreshAmounts(){
+  const r = state.data.recipes.find(x => x.id === state.currentRecipeId);
+  if(!r) return;
+  const results = computeAmounts(r, { targetScale: state.targetScale, pinnedId: state.pinnedId, pinnedAmount: state.pinnedAmount });
+  const body = $('#mat-body');
+  if(!body) return;
+  // 表体会整块重建：先记下正在输入的控件、原文和光标，重建后原样恢复
+  const active = document.activeElement;
+  const activeId = (active && (active.id === 'pin-amt' || active.id === 'pin-weight')) ? active.id : '';
+  const rawText = activeId ? active.value : '';
+  let ss = null, se = null;
+  if(activeId){ try { ss = active.selectionStart; se = active.selectionEnd; } catch(e){} }
+  const noScale = (r.category !== 'cake') && !state.pinnedId && Math.abs(state.targetScale - r.baseScale) < 1e-9;
+  body.innerHTML = results.map(m => {
+    const baseDisp = m.textUnit ? `<span class="amt-base">${esc(m.unit)}</span>` : `<span class="amt-base">${formatNum(m.baseAmount, m.unit)}</span>`;
+    let outCell, pinCell;
+    if(m.textUnit){
+      outCell = `<span class="amt-out">${esc(m.unit)}</span>`;
+      pinCell = `<span style="color:var(--muted);font-size:12px">—</span>`;
+    }else if(state.pinnedId === m.id){
+      outCell = `<span class="amt-out pinned">${formatNum(Number(state.pinnedAmount), m.unit)}</span>
+        <input class="pin-input" id="pin-amt" type="text" inputmode="decimal" value="${state.pinnedAmount}">`;
+      pinCell = `<button class="pin-btn on" data-pin="${m.id}">📌 已钉</button>`;
+    }else if(noScale){
+      outCell = `<span class="amt-base">同基准</span>`;
+      pinCell = `<button class="pin-btn" data-pin="${m.id}">📌 钉住</button>`;
+    }else{
+      outCell = `<span class="amt-out ${state.pinnedId?'pinned':''}">${m.display}</span>`;
+      pinCell = `<button class="pin-btn" data-pin="${m.id}">📌 钉住</button>`;
+    }
+    const dim = (state.pinnedId && state.pinnedId !== m.id) ? ' class="dimmed"' : '';
+    const note = m.note ? `<span class="m-note">${esc(m.note)}</span>` : '';
+    return `<tr${dim}>
+      <td><span class="m-name">${esc(m.name)}</span>${note}</td>
+      <td>${baseDisp}</td>
+      <td>${outCell}</td>
+      <td>${pinCell}</td>
+    </tr>`;
+  }).join('');
+
+  body.querySelectorAll('[data-pin]').forEach(b => b.onclick = () => togglePin(b.dataset.pin));
+  const pa = $('#pin-amt');
+  if(pa){
+    if(activeId === 'pin-amt'){
+      pa.value = rawText;
+      pa.focus();
+      if(ss != null){ try { pa.setSelectionRange(ss, se); } catch(e){} }
+    }
+    pa.oninput = () => {
+      const v = parseWeight(pa.value);
+      if(v != null){ state.pinnedAmount = v; refreshAmounts(); }
+    };
+  }
+  // 与集中式控件保持同步；若用户正在其中输入则保留原文（例如 "12."）
+  const pw = $('#pin-weight');
+  if(pw && state.pinnedId && activeId !== 'pin-weight' && document.activeElement !== pw){
+    pw.value = state.pinnedAmount;
+  }
+}
+
+function setPin(id){
+  const r = state.data.recipes.find(x => x.id === state.currentRecipeId);
+  if(!r) return false;
+  const m = r.materials.find(x => x.id === id);
+  if(!m || !isNumericUnit(m.unit) || !(m.baseAmount > 0)){ toast('该材料无法作为基准（需为数值且基准量>0）'); return false; }
+  state.pinnedId = id;
+  const cur = computeAmounts(r, { targetScale: state.targetScale, pinnedId: null, pinnedAmount: null })
+    .find(x => x.id === id);
+  state.pinnedAmount = cur ? Math.round(cur.amount * 100) / 100 : m.baseAmount;
+  return true;
+}
+function clearPin(){ state.pinnedId = null; state.pinnedAmount = null; }
+function togglePin(id){
+  if(state.pinnedId === id) clearPin();
+  else if(!setPin(id)) return;
+  renderPanel(); refreshAmounts();
+}
+
+/* ============================== RENDER: EDIT ============================== */
+function openEdit(id){
+  let r;
+  if(id){
+    r = state.data.recipes.find(x => x.id === id);
+    r = JSON.parse(JSON.stringify(r));
+  }else{
+    r = { id: uid('r'), name:'', category:'cake', scaleType:'diameter', baseScale:6,
+      scaleExponent:2, baseServingsLabel:'寸', description:'', bakeTemp:'', bakeTime:'',
+      materials:[{id:uid('m'),name:'',baseAmount:0,unit:'g',isBaseMaterial:true,note:''}],
+      steps:[], notes:'', isPreset:false };
+  }
+  state.editing = r;
+  state.view = 'edit';
+  $('#view-list').hidden = true; $('#view-detail').hidden = true; $('#view-edit').hidden = false;
+  renderEdit();
+}
+
+function renderEdit(){
+  const r = state.editing;
+  const curCat = normalizeCategory(r.category);
+  const catOpts = Object.entries(CATEGORIES).map(([k,v]) => `<option value="${k}" ${curCat===k?'selected':''}>${v.icon} ${v.label}</option>`).join('');
+  const unitOpts = UNITS.map(u => `<option value="${u}">${u}</option>`).join('');
+  const matRows = r.materials.map((m, i) => `
+    <div class="mat-edit" data-idx="${i}">
+      <div class="row1">
+        <input class="nm" data-f="name" value="${esc(m.name)}" placeholder="材料名">
+        <input class="base-amt" data-f="baseAmount" type="number" step="any" value="${m.baseAmount}" placeholder="量">
+        <select class="unit" data-f="unit">${UNITS.map(u=>`<option value="${u}" ${m.unit===u?'selected':''}>${u}</option>`).join('')}</select>
+        <button class="del" data-del="${i}" title="删除">×</button>
+      </div>
+      <div class="row2">
+        <input class="nm" data-f="note" value="${esc(m.note)}" placeholder="备注（如：过筛/常温）" style="flex:1">
+        <label class="radio-base"><input type="radio" name="base-mat" data-base="${i}" ${m.isBaseMaterial?'checked':''}> 设为基础(100%)</label>
+      </div>
+    </div>`).join('');
+
+  $('#view-edit').innerHTML = `
+    <div class="back" id="back-from-edit">← 取消</div>
+    <h2 class="detail-title">${r.name ? esc(r.name) : '新增配方'}</h2>
+    <div class="section">
+      <div class="field"><label>配方名称</label><input id="f-name" value="${esc(r.name)}" placeholder="如：原味戚风蛋糕"></div>
+      <div class="grid2">
+        <div class="field"><label>分类</label><select id="f-cat">${catOpts}</select></div>
+        <div class="field"><label>换算方式（按分类自动）</label>
+          <select id="f-scale" disabled>
+            <option value="diameter" ${curCat==='cake'?'selected':''}>蛋糕 → 模具尺寸</option>
+            <option value="serving" ${curCat!=='cake'?'selected':''}>其余 → 按材料重量计算</option>
+          </select></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label>基准规模</label><input id="f-base" type="number" step="any" value="${r.baseScale}"></div>
+        <div class="field"><label>规模单位文字</label><input id="f-label" value="${esc(r.baseServingsLabel|| (r.scaleType==='diameter'?'寸':'份'))}" placeholder="寸 / 盘 / 杯 / 人份"></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label>烘烤温度</label><input id="f-temp" value="${esc(r.bakeTemp)}" placeholder="如 150℃"></div>
+        <div class="field"><label>烘烤时间</label><input id="f-time" value="${esc(r.bakeTime)}" placeholder="如 50分钟"></div>
+      </div>
+      <div class="field"><label>简介</label><textarea id="f-desc" placeholder="一句话描述">${esc(r.description)}</textarea></div>
+    </div>
+
+    <div class="section">
+      <h3>🧺 材料（基准规模下的用量）</h3>
+      <div id="mat-list">${matRows}</div>
+      <div class="add-row" id="add-mat">＋ 添加材料</div>
+    </div>
+
+    <div class="section">
+      <h3>📋 步骤</h3>
+      <div class="field"><textarea id="f-steps" placeholder="每行一条步骤">${esc((r.steps||[]).join('\n'))}</textarea></div>
+    </div>
+
+    <div class="section">
+      <h3>💡 备注</h3>
+      <div class="field"><textarea id="f-notes" placeholder="小贴士">${esc(r.notes)}</textarea></div>
+    </div>
+
+    <div class="actions">
+      <button class="btn primary" id="save-recipe">💾 保存</button>
+      <button class="btn ghost" id="cancel-edit">取消</button>
+    </div>
+  `;
+
+  $('#back-from-edit').onclick = () => { if(state.currentRecipeId) openDetail(state.currentRecipeId); else renderList(); };
+  $('#cancel-edit').onclick = () => { if(state.currentRecipeId) openDetail(state.currentRecipeId); else renderList(); };
+
+  // 材料行绑定
+  $('#mat-list').querySelectorAll('.mat-edit').forEach(row => {
+    const idx = +row.dataset.idx;
+    row.querySelectorAll('[data-f]').forEach(inp => {
+      inp.oninput = () => {
+        const f = inp.dataset.f;
+        let v = inp.value;
+        if(f === 'baseAmount') v = parseFloat(v) || 0;
+        r.materials[idx][f] = v;
+      };
+    });
+    row.querySelector('[data-del]').onclick = () => {
+      if(r.materials.length <= 1){ toast('至少保留一种材料'); return; }
+      r.materials.splice(idx, 1); renderEdit();
+    };
+    const rb = row.querySelector('[data-base]');
+    rb.onchange = () => {
+      r.materials.forEach((m,i) => m.isBaseMaterial = (i === idx));
+      renderEdit();
+    };
+  });
+  $('#add-mat').onclick = () => {
+    r.materials.push({id:uid('m'),name:'',baseAmount:0,unit:'g',isBaseMaterial:false,note:''});
+    renderEdit();
+  };
+  $('#save-recipe').onclick = saveRecipe;
+}
+
+function saveRecipe(){
+  const r = state.editing;
+  r.name = $('#f-name').value.trim();
+  r.category = normalizeCategory($('#f-cat').value);
+  r.scaleType = (r.category === 'cake') ? 'diameter' : 'serving';
+  r.baseScale = parseFloat($('#f-base').value) || (r.scaleType==='diameter'?6:1);
+  r.scaleExponent = (r.scaleType === 'diameter') ? 2 : 1;
+  r.baseServingsLabel = $('#f-label').value.trim() || (r.scaleType==='diameter'?'寸':'份');
+  r.bakeTemp = $('#f-temp').value.trim();
+  r.bakeTime = $('#f-time').value.trim();
+  r.description = $('#f-desc').value.trim();
+  r.steps = $('#f-steps').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  r.notes = $('#f-notes').value.trim();
+
+  // 校验
+  if(!r.name){ toast('请填写配方名称'); return; }
+  r.materials = r.materials.filter(m => m.name && m.name.trim());
+  if(r.materials.length === 0){ toast('请至少添加一种有名称的材料'); return; }
+  r.materials.forEach(m => { m.name = m.name.trim(); if(!(m.baseAmount > 0)) m.baseAmount = 0; });
+  const bases = r.materials.filter(m => m.isBaseMaterial);
+  if(bases.length > 1){ toast('基准材料（100%）只能选一个'); return; }
+
+  const idx = state.data.recipes.findIndex(x => x.id === r.id);
+  if(idx >= 0) state.data.recipes[idx] = r; else state.data.recipes.push(r);
+  saveData();
+  toast('已保存');
+  openDetail(r.id);
+}
+
+/* ============================== RENDER: IO MODAL ============================== */
+function openIO(){
+  const modal = $('#io-modal');
+  modal.hidden = false;
+  let backupRow = '';
+  try{
+    if(localStorage.getItem(BACKUP_KEY)) backupRow = `<div class="row" style="margin-top:14px">
+      <button class="btn" id="io-backup-get">⬇️ 取回清空前备份</button>
+      <button class="btn ghost" id="io-backup-del">🗑️ 删除备份</button></div>`;
+  }catch(e){}
+  modal.innerHTML = `
+    <div class="modal-mask" id="io-mask">
+      <div class="modal">
+        <h2>⚙️ 数据 · 导入 / 导出</h2>
+        <p style="font-size:13px;color:var(--muted);margin:0 0 10px">数据存在本浏览器。换设备时导出 JSON，到另一台设备再导入即可。</p>
+        <h3 style="font-size:14px;margin:14px 0 6px">📤 导出（备份 / 搬运）</h3>
+        <textarea id="io-text" readonly>${esc(exportJSON())}</textarea>
+        <div class="row">
+          <button class="btn" id="io-copy">📋 复制</button>
+          <button class="btn primary" id="io-download">⬇️ 下载 .json</button>
+        </div>
+        <h3 style="font-size:14px;margin:18px 0 6px">📥 导入（粘贴文本或选文件）</h3>
+        <textarea id="io-import" placeholder="把导出的 JSON 粘贴到这里，或下方选择文件"></textarea>
+        <div class="file-in">📁 <input type="file" id="io-file" accept=".json,application/json"></div>
+        <div class="row">
+          <button class="btn" id="io-merge">合并导入</button>
+          <button class="btn danger" id="io-replace">替换全部</button>
+          <button class="btn primary" id="io-parse">📝 批量文本识别</button>
+        </div>
+        ${backupRow}
+        <div class="row" style="margin-top:16px;justify-content:flex-end">
+          <button class="btn ghost" id="io-close">关闭</button>
+        </div>
+      </div>
+    </div>`;
+  $('#io-mask').onclick = (e) => { if(e.target.id === 'io-mask') closeIO(); };
+  $('#io-close').onclick = closeIO;
+  $('#io-copy').onclick = () => {
+    const ta = $('#io-text'); ta.select();
+    navigator.clipboard ? navigator.clipboard.writeText(ta.value).then(()=>toast('已复制')) : (document.execCommand('copy'), toast('已复制'));
+  };
+  $('#io-download').onclick = () => {
+    const blob = new Blob([exportJSON()], {type:'application/json'});
+    const a = document.createElement('a');
+    const d = new Date();
+    const name = `甜品配方备份_${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.json`;
+    a.href = URL.createObjectURL(blob); a.download = name; a.click();
+    URL.revokeObjectURL(a.href); toast('已下载');
+  };
+  $('#io-file').onchange = (e) => {
+    const f = e.target.files[0]; if(!f) return;
+    const reader = new FileReader();
+    reader.onload = () => { $('#io-import').value = reader.result; };
+    reader.readAsText(f);
+  };
+  const doImport = (mode) => {
+    const txt = $('#io-import').value.trim();
+    if(!txt){ toast('请先粘贴或选择 JSON'); return; }
+    try{ importJSON(txt, mode); toast(mode==='replace'?'已替换全部数据':'已合并导入'); closeIO(); renderList(); }
+    catch(err){ toast('导入失败：JSON 格式错误'); }
+  };
+  $('#io-merge').onclick = () => doImport('merge');
+  $('#io-replace').onclick = () => {
+    if(confirm('替换将清空当前所有配方，确定？')) doImport('replace');
+  };
+  $('#io-parse').onclick = () => { closeIO(); openParseModal(); };
+  const bg = $('#io-backup-get');
+  if(bg) bg.onclick = () => {
+    try{
+      const txt = localStorage.getItem(BACKUP_KEY) || '';
+      const blob = new Blob([txt], {type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = '甜品配方_清空前备份.json';
+      a.click(); URL.revokeObjectURL(a.href); toast('备份已下载');
+    }catch(e){ toast('取回失败：'+e.message); }
+  };
+  const bd = $('#io-backup-del');
+  if(bd) bd.onclick = () => {
+    if(confirm('删除清空前的备份？删除后不可找回。')){
+      try{ localStorage.removeItem(BACKUP_KEY); }catch(e){}
+      toast('备份已删除'); closeIO();
+    }
+  };
+}
+
+function closeIO(){ const m = $('#io-modal'); m.hidden = true; m.innerHTML = ''; }
+
+
+/* ============================== PARSE（批量文本识别） ============================== */
+/* --- 常量与纯解析（无 DOM 依赖，可平移） --- */
+
+// 分类归一：合法 key / 旧英文 key / 中文别名 / 模糊兜底
+function normalizeCategory(raw){
+  const t = String(raw == null ? '' : raw).trim();
+  if(!t) return DEFAULT_CATEGORY;
+  if(CATEGORIES[t]) return t;
+  if(OLD_KEY_MAP[t]) return OLD_KEY_MAP[t];
+  if(LABEL_ALIAS[t]) return LABEL_ALIAS[t];
+  for(const k in LABEL_ALIAS) if(t.includes(k)) return LABEL_ALIAS[k];
+  return DEFAULT_CATEGORY;
+}
+function categoryRecognized(raw){
+  const t = String(raw == null ? '' : raw).trim();
+  if(!t) return false;
+  if(CATEGORIES[t] || OLD_KEY_MAP[t] || LABEL_ALIAS[t]) return true;
+  for(const k in LABEL_ALIAS) if(t.includes(k)) return true;
+  return false;
+}
+function escapeRegExp(x){ return String(x).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+// 推荐模板（常驻展示 = 同时作为「填入示例」的内容）
+const TEMPLATE_HINT = `名称：6 寸原味戚风蛋糕
+分类：蛋糕
+模具：6寸
+简介：基础戚风，6 寸中空模
+温度：150℃
+时间：50 分钟
+材料：
+低筋面粉 55 g
+鸡蛋 3 个（常温）
+牛奶 40 g
+细砂糖 40 g
+玉米油 30g
+盐 少许
+香草精 适量 // 几滴，可选
+步骤：
+1. 蛋黄加糖、油、奶搅匀，筛入低粉
+2. 蛋白分次加糖打至硬性发泡
+3. 混合后入模，150℃ 烤 50 分钟
+备注：不要用不粘模，出炉立刻倒扣
+
+---
+
+名称：黄油曲奇
+分类：饼干
+份数：40 块
+材料：
+无盐黄油 125g
+糖粉 60 g
+低筋面粉 180 g
+步骤：
+黄油软化加糖粉打发
+筛粉切压翻拌，挤花成型`;
+
+const FIELD_ALIAS = {
+  '名称':'name','名字':'name','配方名':'name','标题':'name',
+  '分类':'category','类别':'category','品类':'category',
+  '模具':'mold','尺寸':'mold','寸数':'mold','寸':'mold',
+  '份数':'serving','份量':'serving','规模':'serving',
+  '简介':'description','描述':'description',
+  '温度':'bakeTemp','烘烤温度':'bakeTemp',
+  '时间':'bakeTime','烘烤时间':'bakeTime',
+  '备注':'notes','小贴士':'notes',
+  '材料':'__materials__','用料':'__materials__',
+  '步骤':'__steps__','做法':'__steps__'
+};
+
+const NUM_PAT = '\\d+(?:\\.\\d+)?';
+const UNIT_KEYS = UNITS.concat(Object.keys(UNIT_ALIASES))
+  .sort((a,b) => b.length - a.length).map(escapeRegExp).join('|');
+const RE_MAT_NUM  = new RegExp('^\\s*(.+?)\\s*(' + NUM_PAT + ')\\s*(' + UNIT_KEYS + ')\\s*(.*)$');
+const RE_MAT_TEXT = new RegExp('^\\s*(.+?)\\s+(' + TEXT_UNITS.map(escapeRegExp).join('|') + ')\\s*(.*)$');
+const RE_FIELD    = /^\s*([^\s:：]+)\s*[:：]\s*(.*)$/;
+const RE_STEP_NO  = /^\s*\d+\s*[.、)．]\s*/;
+
+function cleanNote(t){
+  return String(t == null ? '' : t).trim()
+    .replace(/^[\/／,，;；:：\s]+/, '')
+    .replace(/^[（(]\s*/, '')
+    .replace(/[）)]\s*$/, '')
+    .trim();
+}
+
+// 「低筋面粉 55 g」「无盐黄油 125g」「低筋面粉 55克」「盐 少许」统一解析
+function parseMaterialLine(line){
+  let m = line.match(RE_MAT_NUM);
+  if(m){
+    return {
+      name: m[1].trim(),
+      baseAmount: parseFloat(m[2]),
+      unit: UNIT_ALIASES[m[3]] || m[3],
+      note: cleanNote(m[4]),
+      isBaseMaterial: false
+    };
+  }
+  m = line.match(RE_MAT_TEXT);
+  if(m){
+    return {
+      name: m[1].trim(), baseAmount: 0,
+      unit: m[2], note: cleanNote(m[3]), isBaseMaterial: false
+    };
+  }
+  return null;
+}
+
+function parseBlock(lines, seq){
+  const warnings = [];
+  const rec = {
+    name:'', category:'', scaleType:'', baseScale:null, scaleExponent:1,
+    baseServingsLabel:'', description:'', bakeTemp:'', bakeTime:'', notes:'',
+    materials:[], steps:[], isPreset:false
+  };
+  let mode = 'field', moldRaw = '', servingRaw = '', categoryRaw = '', seenField = false;
+
+  lines.forEach(raw => {
+    const line = String(raw).trim();
+    if(!line) return;
+    const fm = line.match(RE_FIELD);
+    const key = fm ? FIELD_ALIAS[fm[1].trim()] : null;
+    if(fm && key){
+      seenField = true;
+      const val = fm[2].trim();
+      if(key === '__materials__'){ mode = 'materials'; return; }
+      if(key === '__steps__'){ mode = 'steps'; return; }
+      mode = 'field';
+      if(key === 'name') rec.name = val;
+      else if(key === 'category') categoryRaw = val;
+      else if(key === 'mold') moldRaw = val;
+      else if(key === 'serving') servingRaw = val;
+      else rec[key] = val;
+      return;
+    }
+    if(mode === 'materials'){
+      const mat = parseMaterialLine(line);
+      if(mat) rec.materials.push(mat);
+      else warnings.push('材料行解析失败（已跳过）：' + line);
+    }else if(mode === 'steps'){
+      rec.steps.push(line.replace(RE_STEP_NO, '').trim());
+    }else{
+      warnings.push('未识别的行（已忽略）：' + line);
+    }
+  });
+
+  if(!seenField) return null;
+
+  // 名称
+  const nameMissing = !rec.name;
+  if(nameMissing){
+    rec.name = '未命名配方 ' + seq;
+    warnings.push('缺少「名称」，请在下方补一个名称');
+  }
+  // 分类（唯一权威，决定是否有模具换算）
+  rec.category = normalizeCategory(categoryRaw);
+  if(!categoryRaw) warnings.push('缺少「分类」，已默认归为「甜点」');
+  else if(!categoryRecognized(categoryRaw)) warnings.push('分类「' + categoryRaw + '」未识别，已归为「甜点」');
+
+  const isCake = rec.category === 'cake';
+  rec.scaleType = isCake ? 'diameter' : 'serving';
+  rec.scaleExponent = isCake ? 2 : 1;
+  if(isCake){
+    const mm = moldRaw.match(/(\d+(?:\.\d+)?)\s*寸/);
+    rec.baseScale = mm ? parseFloat(mm[1]) : 6;
+    rec.baseServingsLabel = '寸';
+    if(!moldRaw) warnings.push('蛋糕未写「模具」，默认按 6 寸');
+    else if(!mm) warnings.push('「模具」未读到寸数，默认按 6 寸');
+    if(servingRaw) warnings.push('蛋糕按模具换算，「份数」字段已忽略');
+  }else{
+    const sm = servingRaw.match(/(\d+(?:\.\d+)?)\s*(.*)$/);
+    rec.baseScale = sm ? parseFloat(sm[1]) : 1;
+    rec.baseServingsLabel = sm ? (sm[2].trim() || '份') : '份';
+    if(moldRaw) warnings.push('该分类不含模具换算，「模具」字段已忽略');
+  }
+  if(rec.materials.length === 0) warnings.push('没有识别到材料，可在写入后进入编辑补充');
+  // 默认把第一个数值材料设为基准，便于按重量计算
+  const firstNum = rec.materials.find(m => isNumericUnit(m.unit) && m.baseAmount > 0);
+  if(firstNum) firstNum.isBaseMaterial = true;
+
+  return {
+    index: seq - 1, checked: true, nameMissing,
+    counts: { materials: rec.materials.length, steps: rec.steps.length },
+    warnings, recipe: rec
+  };
+}
+
+function parseRecipesText(text){
+  const warnings = [];
+  const norm = String(text == null ? '' : text)
+    .replace(/^\s*【\s*配方\s*\d+\s*】\s*$/gm, '---');
+  const chunks = norm.split(/^\s*-{3,}\s*$/m);
+  const blocks = [];
+  chunks.forEach((chunk, i) => {
+    const b = parseBlock(chunk.split(/\r?\n/), blocks.length + 1);
+    if(b) blocks.push(b);
+    else if(chunk.trim()) warnings.push('第 ' + (i + 1) + ' 段无有效字段，已跳过');
+  });
+  return { blocks, warnings };
+}
+
+/* --- 预览 / 确认 UI --- */
+function openParseModal(){
+  const modal = $('#parse-modal');
+  modal.hidden = false;
+  modal.innerHTML = `
+    <div class="modal-mask" id="parse-mask">
+      <div class="modal">
+        <div id="parse-stage-input">
+          <h2>📝 批量文本识别</h2>
+          <div class="hint">严格按下面模板粘贴；多个配方用单独一行 <b>---</b> 分隔。纯离线规则解析，<b>不联网、不调用 AI</b>；解析后先预览再确认。</div>
+          <pre class="tpl-pre">${esc(TEMPLATE_HINT)}</pre>
+          <textarea id="parse-input" placeholder="把配方文本粘贴到这里，或下方选择 .txt 文件…"></textarea>
+          <div class="file-in">📁 <input type="file" id="parse-file" accept=".txt,text/plain"></div>
+          <div class="row">
+            <button class="btn" id="parse-fill">📋 填入示例</button>
+            <button class="btn primary" id="parse-run">🔍 解析预览</button>
+            <button class="btn ghost" id="parse-close">关闭</button>
+          </div>
+        </div>
+        <div id="parse-stage-preview" hidden>
+          <h2 id="parse-count">🔍 识别结果</h2>
+          <div class="hint">以下为预览，<b>确认后才会写入</b>；未勾选的不导入。名称与分类可直接修改。</div>
+          <div id="parse-warnings"></div>
+          <div id="parse-preview-list"></div>
+          <div class="row">
+            <button class="btn primary" id="parse-commit">✅ 确认写入</button>
+            <button class="btn ghost" id="parse-back">← 返回修改</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  const ta = $('#parse-input');
+  ta.value = state.parse.text || '';
+  $('#parse-mask').onclick = (e) => { if(e.target.id === 'parse-mask') closeParseModal(); };
+  $('#parse-close').onclick = closeParseModal;
+  $('#parse-fill').onclick = () => { ta.value = TEMPLATE_HINT; toast('已填入示例模板，可直接点「解析预览」试试'); };
+  $('#parse-file').onchange = (e) => {
+    const f = e.target.files[0]; if(!f) return;
+    const reader = new FileReader();
+    reader.onload = () => { ta.value = reader.result; toast('已读取文件，请点「解析预览」'); };
+    reader.onerror = () => toast('文件读取失败');
+    reader.readAsText(f, 'utf-8');
+  };
+  $('#parse-run').onclick = () => {
+    state.parse.text = ta.value;
+    const res = parseRecipesText(state.parse.text);
+    state.parse.blocks = res.blocks;
+    state.parse.warnings = res.warnings;
+    if(!res.blocks.length){ toast('未识别到配方，请按上方模板检查格式'); return; }
+    $('#parse-stage-input').hidden = true;
+    $('#parse-stage-preview').hidden = false;
+    renderParsePreview();
+  };
+  $('#parse-back').onclick = () => {
+    $('#parse-stage-preview').hidden = true;
+    $('#parse-stage-input').hidden = false;
+    $('#parse-input').value = state.parse.text;
+  };
+  $('#parse-commit').onclick = commitParsedRecipes;
+}
+
+function closeParseModal(){
+  const m = $('#parse-modal'); m.hidden = true; m.innerHTML = '';
+}
+
+function renderParsePreview(){
+  const bs = state.parse.blocks;
+  $('#parse-count').textContent = '🔍 识别结果（共 ' + bs.length + ' 个配方）';
+  const gl = state.parse.warnings || [];
+  $('#parse-warnings').innerHTML = gl.length
+    ? `<div class="hint" style="margin-top:8px">⚠️ ${gl.map(w => esc(w)).join('<br>')}</div>` : '';
+  $('#parse-preview-list').innerHTML = bs.map((b, i) => {
+    const opts = Object.entries(CATEGORIES).map(([k,v]) =>
+      `<option value="${k}" ${b.recipe.category===k?'selected':''}>${v.icon} ${v.label}</option>`).join('');
+    return `<div class="card parse-card ${b.nameMissing?'need-name':''}" data-i="${i}">
+      <div class="top">
+        <input type="checkbox" class="pick" data-i="${i}" ${b.checked?'checked':''}>
+        <input class="nm" data-i="${i}" data-f="name" value="${esc(b.recipe.name)}" placeholder="配方名称">
+      </div>
+      <div class="grid2" style="margin-top:8px">
+        <select data-i="${i}" data-f="category">${opts}</select>
+        <span class="tag">🧺 材料 ${b.counts.materials} · 📋 步骤 ${b.counts.steps}</span>
+      </div>
+      ${b.warnings.length ? `<div class="hint" style="margin-top:8px">⚠️ ${b.warnings.map(w=>esc(w)).join('<br>')}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  $('#parse-preview-list').querySelectorAll('.pick').forEach(cb => {
+    cb.onchange = () => { state.parse.blocks[+cb.dataset.i].checked = cb.checked; updateCommitLabel(); };
+  });
+  $('#parse-preview-list').querySelectorAll('[data-f]').forEach(inp => {
+    inp.oninput = () => {
+      const b = state.parse.blocks[+inp.dataset.i];
+      b.recipe[inp.dataset.f] = inp.value;
+      if(inp.dataset.f === 'name' && inp.value.trim()){
+        b.nameMissing = false;
+        inp.closest('.parse-card').classList.remove('need-name');
+      }
+    };
+    inp.onchange = inp.oninput;
+  });
+  updateCommitLabel();
+}
+
+function updateCommitLabel(){
+  const k = state.parse.blocks.filter(b => b.checked).length;
+  $('#parse-commit').textContent = '✅ 确认写入（' + k + '）';
+}
+
+// 纯追加写入：复用 migrate 规范化，不复用 importJSON（避免 replace 覆盖）
+function commitParsedRecipes(){
+  const picked = state.parse.blocks.filter(b => b.checked);
+  if(!picked.length){ toast('请至少勾选一个配方'); return; }
+  const missing = picked.find(b => !(b.recipe.name || '').trim());
+  if(missing){ toast('有配方未填名称，请在预览里补上'); return; }
+
+  const snapshot = state.data.recipes.slice();
+  const toAdd = picked.map(b => {
+    const r = JSON.parse(JSON.stringify(b.recipe));
+    r.id = uid('r');
+    r.materials = r.materials.map(m => ({ ...m, id: uid('m') }));
+    r.name = r.name.trim();
+    r.category = normalizeCategory(r.category);
+    r.scaleType = (r.category === 'cake') ? 'diameter' : 'serving';
+    r.scaleExponent = (r.scaleType === 'diameter') ? 2 : 1;
+    // 预览里改过分类时，同步规模单位，避免出现「饼干的 6寸基准」
+    if(r.scaleType === 'diameter'){ r.baseServingsLabel = '寸'; if(!(r.baseScale > 0)) r.baseScale = 6; }
+    else if(r.baseServingsLabel === '寸'){ r.baseServingsLabel = '份'; }
+    return r;
+  });
+  const wrapped = migrate({ app:'dessert-recipe-book', schemaVersion:SCHEMA_VERSION, recipes: toAdd });
+  state.data.recipes = state.data.recipes.concat(wrapped.recipes);
+
+  if(!saveData()){
+    state.data.recipes = snapshot;
+    toast('写入失败：存储空间不足，现有数据未改动，请先导出备份');
+    return;
+  }
+  const cnt = wrapped.recipes.length;
+  state.parse = { text:'', blocks:[], warnings:[] };
+  closeParseModal();
+  toast('已写入 ' + cnt + ' 个配方');
+  renderList();
+}
+
+/* ============================== INIT ============================== */
+function init(){
+  state.data = loadData();
+  $('#btn-add').onclick = () => { state.currentRecipeId = null; openEdit(null); };
+  $('#btn-io').onclick = openIO;
+  const si = $('#search-input');
+  si.oninput = () => { state.search = si.value; renderList(); };
+  renderList();
+  // 引擎自检（控制台）
+  if(typeof console !== 'undefined'){
+    try{
+      const f68 = computeFactor('diameter',6,8);
+      const f46 = computeFactor('diameter',6,4);
+      console.log('[引擎自检] 6→8 系数=', f68.toFixed(4), '(应≈1.7778)；4→6 系数=', (1/f46).toFixed(4), '(应≈2.25)');
+    }catch(e){ console.warn('引擎自检跳过', e); }
+  }
+  // 离线缓存：只在 HTTPS / localhost 下注册；双击 file:// 打开时自动跳过
+  if('serviceWorker' in navigator){
+    const p = location.protocol;
+    if(p === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1'){
+      const reg = () => { navigator.serviceWorker.register('sw.js').catch(() => {}); };
+      if(document.readyState === 'complete') reg();
+      else window.addEventListener('load', reg, { once:true });
+    }
+  }
+}
+init();
+</script>
+</body>
+</html>
